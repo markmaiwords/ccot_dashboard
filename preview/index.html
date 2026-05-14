@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CCOT / RRT Program Dashboard — Layout Preview</title>
+<!-- Bootswatch Flatly mirrors bslib::bs_theme(bootswatch="flatly") -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+<style>
+  :root { --bs-primary: #1f4e79; }
+  body { background: #f6f7f9; }
+  .navbar-brand { font-weight: 600; }
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: #fff; border-right: 1px solid #e5e7eb; padding: 1rem;
+  }
+  .kpi-card .card-body { padding: .85rem 1rem; }
+  .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+  .kpi-title { font-size: .80rem; text-transform: uppercase; color: #6b7280; letter-spacing: .03em;}
+  .kpi-foot { font-size: .75rem; color: #6b7280; margin-bottom: 0; }
+  .kpi-icon { font-size: 1.6rem; opacity: .7; }
+  .card-header { background: #fafbfc; font-weight: 600; }
+  .nav-tabs .nav-link.active { font-weight: 600; }
+  .preview-banner { background:#fff3cd; border-bottom:1px solid #ffeeba; padding:.5rem 1rem; font-size:.85rem;}
+  .tab-pane { padding-top: 1rem; }
+  .chart { width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="preview-banner">
+  <i class="bi bi-info-circle"></i>
+  <strong>Layout preview</strong> — this is a static HTML mockup of the Shiny app
+  (same Flatly theme, Plotly charts, DataTables, mock data). The live app is
+  <code>app.R</code> — run with <code>shiny::runApp()</code> in R.
+</div>
+
+<nav class="navbar navbar-expand-lg navbar-dark" style="background:#1f4e79;">
+  <div class="container-fluid">
+    <span class="navbar-brand"><i class="bi bi-activity"></i> CCOT / RRT Program Dashboard</span>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Global sidebar -->
+    <aside class="col-12 col-lg-3 col-xxl-2 sidebar">
+      <h6 class="text-uppercase text-muted mb-3">Global filters</h6>
+      <label class="form-label small">Date range (applies to all tabs)</label>
+      <div class="input-group input-group-sm mb-2">
+        <input type="date" class="form-control" value="2024-01-01">
+        <span class="input-group-text">to</span>
+        <input type="date" class="form-control" value="2026-05-14">
+      </div>
+      <hr>
+      <p class="small text-muted">
+        <strong>T0</strong> = first CCOT assessment (CCOT cases) or RRT
+        activation (RRT cases). Observation window = 72h.
+        <strong>Emergency transfer</strong> = intubation OR vasopressor at
+        PICU transfer within window.
+      </p>
+      <hr>
+      <p class="small text-muted">
+        Mock data — replace <code>data/simulate_data.R</code> with real
+        ETL pulls before clinical use.
+      </p>
+    </aside>
+
+    <!-- Main content -->
+    <main class="col-12 col-lg-9 col-xxl-10 py-3">
+
+      <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-overview"><i class="bi bi-speedometer2"></i> Overview</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ccot"><i class="bi bi-clipboard-pulse"></i> CCOT Outcomes</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rrt"><i class="bi bi-exclamation-triangle"></i> RRT Outcomes</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-charges"><i class="bi bi-currency-dollar"></i> Charges &amp; Finance</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-impl"><i class="bi bi-clipboard-check"></i> Implementation</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dq"><i class="bi bi-shield-check"></i> Data Quality</button></li>
+      </ul>
+
+      <div class="tab-content">
+
+        <!-- ========== OVERVIEW ========== -->
+        <div class="tab-pane fade show active" id="tab-overview">
+          <div class="row g-3 mb-3" id="kpis-overview"></div>
+          <div class="row g-3 mb-3">
+            <div class="col-lg-7"><div class="card"><div class="card-header">Weekly volume — CCOT vs RRT</div><div class="card-body"><div id="ov-volume" class="chart" style="height:340px;"></div></div></div></div>
+            <div class="col-lg-5"><div class="card"><div class="card-header">Activity by unit and day of week</div><div class="card-body"><div id="ov-heatmap" class="chart" style="height:340px;"></div></div></div></div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-12"><div class="card"><div class="card-header">Hour-of-day distribution — CCOT, RRT, transfers</div><div class="card-body"><div id="ov-hour" class="chart" style="height:320px;"></div></div></div></div>
+          </div>
+        </div>
+
+        <!-- ========== CCOT OUTCOMES ========== -->
+        <div class="tab-pane fade" id="tab-ccot">
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="card"><div class="card-body">
+                <label class="form-label small">Unit</label>
+                <select class="form-select form-select-sm mb-2"><option>All</option><option>7 Medical</option><option>8 Hem/Onc</option><option>9 Cardiology</option></select>
+                <label class="form-label small">Recommendation</label>
+                <select class="form-select form-select-sm mb-2"><option>All</option><option>monitor</option><option>escalate</option><option>RRT called</option><option>transfer</option></select>
+                <label class="form-label small">Time of day (T0)</label>
+                <div class="small">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Night (00-07)</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Day (07-15)</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Evening (15-23)</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Late (23-00)</label></div>
+                </div>
+              </div></div>
+            </div>
+            <div class="col-md-9">
+              <div class="row g-3 mb-3" id="kpis-ccot"></div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-6"><div class="card"><div class="card-header">Cumulative transfer rate by window</div><div class="card-body"><div id="ccot-funnel" class="chart" style="height:300px;"></div></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header">Emergency transfer rate by recommendation</div><div class="card-body"><div id="ccot-byrec" class="chart" style="height:300px;"></div></div></div></div>
+              </div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-7"><div class="card"><div class="card-header">Mean composite PEWS — 24h before T0</div><div class="card-body"><div id="ccot-pews" class="chart" style="height:320px;"></div></div></div></div>
+                <div class="col-md-5"><div class="card"><div class="card-header">CCOT note hour-of-day — transferred vs not</div><div class="card-body"><div id="ccot-hour" class="chart" style="height:320px;"></div></div></div></div>
+              </div>
+              <div class="card"><div class="card-header">CCOT cases (filtered)</div><div class="card-body">
+                <table id="ccot-table" class="table table-sm table-striped" style="width:100%;"></table>
+              </div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== RRT OUTCOMES ========== -->
+        <div class="tab-pane fade" id="tab-rrt">
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="card"><div class="card-body">
+                <label class="form-label small">Unit</label>
+                <select class="form-select form-select-sm mb-2"><option>All</option><option>7 Medical</option><option>9 Cardiology</option></select>
+                <label class="form-label small">Time of day (activation)</label>
+                <div class="small">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Night (00-07)</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Day (07-15)</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Evening (15-23)</label></div>
+                </div>
+              </div></div>
+            </div>
+            <div class="col-md-9">
+              <div class="row g-3 mb-3" id="kpis-rrt"></div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-6"><div class="card"><div class="card-header">Cumulative transfer rate by window</div><div class="card-body"><div id="rrt-funnel" class="chart" style="height:300px;"></div></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header">Activation reason — NLP buckets</div><div class="card-body"><div id="rrt-reason" class="chart" style="height:300px;"></div></div></div></div>
+              </div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-6"><div class="card"><div class="card-header">Disposition after RRT</div><div class="card-body"><div id="rrt-disp" class="chart" style="height:300px;"></div></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header">RRT hour-of-day — emergency vs not</div><div class="card-body"><div id="rrt-hour" class="chart" style="height:300px;"></div></div></div></div>
+              </div>
+              <div class="card"><div class="card-header">RRT activations (filtered)</div><div class="card-body">
+                <table id="rrt-table" class="table table-sm table-striped" style="width:100%;"></table>
+              </div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== CHARGES ========== -->
+        <div class="tab-pane fade" id="tab-charges">
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="card"><div class="card-body">
+                <label class="form-label small">Provider</label>
+                <select class="form-select form-select-sm mb-2" multiple><option>Dr. Patel</option><option>Dr. Nguyen</option><option>Dr. Chen</option></select>
+                <label class="form-label small">Unit</label>
+                <select class="form-select form-select-sm mb-2"><option>All</option></select>
+                <label class="form-label small">CPT</label>
+                <select class="form-select form-select-sm mb-2" multiple><option>99231</option><option>99232</option><option>99233</option><option>99291</option></select>
+              </div></div>
+            </div>
+            <div class="col-md-9">
+              <div class="row g-3 mb-3" id="kpis-charges"></div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-7"><div class="card"><div class="card-header">Monthly charges trend</div><div class="card-body"><div id="ch-trend" class="chart" style="height:300px;"></div></div></div></div>
+                <div class="col-md-5"><div class="card"><div class="card-header">Charges by CPT / E&amp;M code</div><div class="card-body"><div id="ch-cpt" class="chart" style="height:300px;"></div></div></div></div>
+              </div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-6"><div class="card"><div class="card-header">Charges by provider</div><div class="card-body"><div id="ch-prov" class="chart" style="height:280px;"></div></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header">Charges by unit</div><div class="card-body"><div id="ch-unit" class="chart" style="height:280px;"></div></div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== IMPLEMENTATION ========== -->
+        <div class="tab-pane fade" id="tab-impl">
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="card"><div class="card-body">
+                <label class="form-label small">Respondent role</label>
+                <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">CCOT team</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">Floor provider</label></div>
+                <label class="form-label small mt-2">Subscale</label>
+                <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">acceptability</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">appropriateness</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">feasibility</label></div>
+              </div></div>
+            </div>
+            <div class="col-md-9">
+              <div class="card mb-3"><div class="card-header">CCOT team — weekly subscale trends</div><div class="card-body"><div id="im-trend" class="chart" style="height:320px;"></div></div></div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-6"><div class="card"><div class="card-header">Floor providers — snapshot (sparse)</div><div class="card-body"><div id="im-floor" class="chart" style="height:320px;"></div></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header">Subscale score distributions</div><div class="card-body"><div id="im-violin" class="chart" style="height:320px;"></div></div></div></div>
+              </div>
+              <div class="card"><div class="card-header">Free-text responses</div><div class="card-body">
+                <table id="im-table" class="table table-sm table-striped" style="width:100%;"></table>
+              </div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== DATA QUALITY ========== -->
+        <div class="tab-pane fade" id="tab-dq">
+          <div class="row g-3 mb-3" id="kpis-dq"></div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-7"><div class="card"><div class="card-header">Note parse success — weekly trend</div><div class="card-body"><div id="dq-parse" class="chart" style="height:320px;"></div></div></div></div>
+            <div class="col-md-5"><div class="card"><div class="card-header">Missing-data summary across joined tables</div><div class="card-body"><div id="dq-miss" class="chart" style="height:320px;"></div></div></div></div>
+          </div>
+          <div class="card"><div class="card-header">Failed note parses (manual review queue)</div><div class="card-body">
+            <table id="dq-table" class="table table-sm table-striped" style="width:100%;"></table>
+          </div></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+// ---------- Mock data (mirrors data/simulate_data.R) ----------
+function rnorm(mu, sd){let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();return mu+sd*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function rsample(arr,n,probs){const out=[];const total=probs?probs.reduce((a,b)=>a+b,0):arr.length;for(let i=0;i<n;i++){if(!probs){out.push(arr[Math.floor(Math.random()*arr.length)]);continue;}let r=Math.random()*total,acc=0;for(let j=0;j<arr.length;j++){acc+=probs[j];if(r<=acc){out.push(arr[j]);break;}}}return out;}
+function pct(x,d=1){return (x*100).toFixed(d)+"%";}
+const UNITS = ["7 Medical","7 Surgical","8 Hem/Onc","9 Cardiology","9 Neurology","10 General Peds"];
+const DOWS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+// Weekly volumes for 70 weeks
+const weeks = []; const start = new Date(2024,0,1);
+for (let i=0;i<70;i++){const d=new Date(start);d.setDate(d.getDate()+7*i);weeks.push(d);}
+const ccotWk = weeks.map((d,i)=>Math.round(10+8*Math.sin(i/8)+rnorm(0,1.6)));
+const rrtWk  = weeks.map((d,i)=>Math.round(3+2*Math.cos(i/9)+rnorm(0,0.9)));
+
+// Unit x DOW heatmap
+const heatZ = UNITS.map(()=>DOWS.map(()=>Math.round(8+rnorm(15,7))));
+
+// Hour-of-day for 3 series
+const hours = Array.from({length:24},(_,i)=>i);
+const dayShape = h => h<7?0.5:(h<15?2.0:(h<23?2.2:0.6));
+const ccotHr = hours.map(h=>Math.round(40*dayShape(h)+rnorm(0,4)));
+const rrtHr  = hours.map(h=>Math.round(14*dayShape(h)*0.9+rnorm(0,2)));
+const txHr   = hours.map(h=>Math.round(10+rnorm(0,2)));
+
+// CCOT funnel
+const ccotRates = [0.04, 0.11, 0.16, 0.22];
+const rrtRates  = [0.18, 0.31, 0.39, 0.45];
+
+// Recommendation breakdown
+const recCats = ["monitor","escalate","RRT called","transfer"];
+const recRates = [0.03, 0.12, 0.28, 0.41];
+const recN = [470, 215, 105, 70];
+
+// PEWS trajectory
+const trajHours = Array.from({length:25},(_,i)=>i-24);
+const pewsTx = trajHours.map(h=>3.0 + 0.06*(24+h) + rnorm(0,0.15));
+const pewsNo = trajHours.map(h=>1.8 + 0.005*(24+h) + rnorm(0,0.15));
+
+// CCOT hour x outcome
+const ccotHrTx = hours.map(h=>Math.round(rrtHr[h]*0.18 + rnorm(0,1)));
+const ccotHrNo = hours.map((h,i)=>Math.max(0, ccotHr[h]-ccotHrTx[i]));
+
+// RRT reason buckets
+const reasonLabels = ["Respiratory","Cardiovascular","Family/Nurse concern","Sepsis/Infection","Neurologic","Other"];
+const reasonN = [78, 54, 32, 28, 19, 9];
+
+// RRT disposition
+const dispLabels = ["Remained on floor","Transferred to PICU","Transferred to CICU"];
+const dispN = [98, 99, 23];
+
+// RRT hour x emergency
+const rrtHrEmerg = hours.map(h=>Math.round(rrtHr[h]*0.45+rnorm(0,1)));
+const rrtHrNo    = hours.map((h,i)=>Math.max(0,rrtHr[h]-rrtHrEmerg[i]));
+
+// Charges
+const months = []; for (let i=0;i<28;i++){const d=new Date(2024,i,1);months.push(d);}
+const monthlyCharges = months.map((d,i)=>Math.round(38000+i*900+rnorm(0,4500)));
+const cpts = ["99231","99232","99233","99291","99292"];
+const cptTotals = [42000, 78000, 96000, 71000, 18000];
+const providers = ["Dr. Patel","Dr. Nguyen","Dr. Okafor","Dr. Chen","Dr. Garcia","Dr. Reyes"];
+const provTotals = providers.map(()=>Math.round(30000+rnorm(20000,8000)));
+const unitTotals = UNITS.map(()=>Math.round(20000+rnorm(35000,10000)));
+
+// Implementation
+const teamTrend = NaN; // built below
+const nomadDates = weeks.slice(0,52);
+const accept = nomadDates.map((_,i)=>Math.min(5,Math.max(1, 3.6+0.012*i+rnorm(0,0.1))));
+const approp = nomadDates.map((_,i)=>Math.min(5,Math.max(1, 3.8+0.010*i+rnorm(0,0.1))));
+const feasib = nomadDates.map((_,i)=>Math.min(5,Math.max(1, 3.4+0.008*i+rnorm(0,0.12))));
+const floorDates = [];
+const floorScores = {acceptability:[],appropriateness:[],feasibility:[]};
+for (let i=0;i<70;i++){floorDates.push(weeks[Math.floor(Math.random()*52)]);
+  floorScores.acceptability.push(Math.min(5,Math.max(1,rnorm(3.6,0.8))));
+  floorScores.appropriateness.push(Math.min(5,Math.max(1,rnorm(3.7,0.7))));
+  floorScores.feasibility.push(Math.min(5,Math.max(1,rnorm(3.4,0.9))));
+}
+
+// DQ parse weekly
+const parseRate = weeks.map((d,i)=>Math.min(0.99, 0.85 + 0.002*i + rnorm(0,0.02)));
+
+// ---------- KPI cards ----------
+function kpi(title, value, foot, icon, color){
+  const themes = {primary:'text-primary',danger:'text-danger',warning:'text-warning',success:'text-success',info:'text-info'};
+  const cls = themes[color]||'text-primary';
+  return `<div class="col-md-4 col-xl-2">
+    <div class="card kpi-card h-100"><div class="card-body d-flex justify-content-between">
+      <div>
+        <div class="kpi-title">${title}</div>
+        <div class="kpi-value ${cls}">${value}</div>
+        <p class="kpi-foot">${foot||''}</p>
+      </div>
+      <div class="kpi-icon ${cls}"><i class="bi bi-${icon}"></i></div>
+    </div></div></div>`;
+}
+
+document.getElementById('kpis-overview').innerHTML = [
+  kpi('CCOT encounters','850','First assessment per encounter','clipboard-pulse','primary'),
+  kpi('RRT activations','220','All activations in range','exclamation-triangle','warning'),
+  kpi('Emergency transfer rate (CCOT)','6.2%','Intubation or vasopressor within 72h','heart-pulse','danger'),
+  kpi('Emergency transfer rate (RRT)','21.8%','Intubation or vasopressor within 72h','heart-pulse','danger'),
+  kpi('Total charges','$305,420','Pro-fee in range','currency-dollar','success'),
+  kpi('Active days','498','Days with at least one CCOT encounter','calendar3','primary'),
+].join('');
+
+document.getElementById('kpis-ccot').innerHTML = [
+  kpi('CCOT cases (filtered)','850','','people','primary'),
+  kpi('Transfer ≤2h','3.6%','','stopwatch','primary'),
+  kpi('Transfer ≤12h','10.5%','','stopwatch','primary'),
+  kpi('Transfer ≤24h','16.1%','','stopwatch','primary'),
+  kpi('Transfer ≤48h','21.4%','','stopwatch','primary'),
+  kpi('Emergency transfer (72h)','6.2%','Intubation or vasopressor','heart-pulse','danger'),
+].join('');
+
+document.getElementById('kpis-rrt').innerHTML = [
+  kpi('RRT activations','220','','exclamation-triangle','warning'),
+  kpi('Transfer ≤2h','17.7%','','stopwatch','primary'),
+  kpi('Transfer ≤12h','30.9%','','stopwatch','primary'),
+  kpi('Transfer ≤24h','38.6%','','stopwatch','primary'),
+  kpi('Transfer ≤48h','44.5%','','stopwatch','primary'),
+  kpi('Emergency transfer','21.8%','Intubation or vasopressor within 72h','heart-pulse','danger'),
+].join('');
+
+document.getElementById('kpis-charges').innerHTML = [
+  kpi('Total charges','$305,420','','currency-dollar','success'),
+  kpi('Billed encounters','612','Distinct CSNs with charges','receipt','primary'),
+  kpi('Billing capture rate','72.0%','612 billed / 850 CCOT encounters','check2-square','primary'),
+  kpi('Average charge','$152','Per charge line','calculator','primary'),
+].join('');
+
+document.getElementById('kpis-dq').innerHTML = [
+  kpi('CCOT notes in range','850','','journal-text','primary'),
+  kpi('Parse success','94.0%','note_parse_success = TRUE','check2-circle','success'),
+  kpi('Failed parses','51','Queued for manual review','x-octagon','danger'),
+  kpi('PEWS completeness','82.4%','≥3 flowsheet rows within 24h pre-T0','graph-up','primary'),
+].join('');
+
+// ---------- Plotly chart helpers ----------
+const baseLayout = { margin:{t:20,r:10,b:40,l:50}, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)', font:{family:'system-ui,Segoe UI,Roboto,sans-serif'} };
+const baseConfig = { displaylogo:false, responsive:true, modeBarButtonsToRemove:['select2d','lasso2d','autoScale2d','toggleSpikelines'] };
+
+// ===== Overview =====
+Plotly.newPlot('ov-volume', [
+  { x:weeks, y:ccotWk, name:'CCOT', mode:'lines+markers', line:{color:'#1f77b4'} },
+  { x:weeks, y:rrtWk,  name:'RRT',  mode:'lines+markers', line:{color:'#d62728'} },
+], {...baseLayout, yaxis:{title:'Encounters / week'}}, baseConfig);
+
+Plotly.newPlot('ov-heatmap', [{
+  z:heatZ, x:DOWS, y:UNITS, type:'heatmap', colorscale:'Viridis', colorbar:{title:'Cases'}
+}], baseLayout, baseConfig);
+
+Plotly.newPlot('ov-hour', [
+  { x:hours, y:ccotHr, name:'CCOT note', mode:'lines+markers', line:{color:'#1f77b4'} },
+  { x:hours, y:rrtHr,  name:'RRT call',  mode:'lines+markers', line:{color:'#d62728'} },
+  { x:hours, y:txHr,   name:'Transfer',  mode:'lines+markers', line:{color:'#2ca02c'} },
+], {...baseLayout, xaxis:{title:'Hour of day', dtick:3}, yaxis:{title:'Count'}}, baseConfig);
+
+// ===== CCOT outcomes =====
+Plotly.newPlot('ccot-funnel', [{
+  x:['2h','12h','24h','48h'], y:ccotRates, type:'bar', marker:{color:'#2c7fb8'},
+  text:ccotRates.map(v=>pct(v)), textposition:'outside'
+}], {...baseLayout, yaxis:{title:'Cumulative transfer rate', tickformat:'.0%', range:[0,0.3]}}, baseConfig);
+
+Plotly.newPlot('ccot-byrec', [{
+  x:recCats, y:recRates, type:'bar',
+  marker:{color:['#9ecae1','#fdae6b','#fb6a4a','#a50f15']},
+  text:recRates.map((v,i)=>`${pct(v)}\n(n=${recN[i]})`), textposition:'outside'
+}], {...baseLayout, yaxis:{title:'Emergency transfer rate', tickformat:'.0%', range:[0,0.55]}}, baseConfig);
+
+Plotly.newPlot('ccot-pews', [
+  { x:trajHours, y:pewsTx, name:'Transferred ≤72h', mode:'lines+markers', line:{color:'#d62728'} },
+  { x:trajHours, y:pewsNo, name:'Not transferred',  mode:'lines+markers', line:{color:'#2ca02c'} },
+], {...baseLayout, xaxis:{title:'Hours relative to T0'}, yaxis:{title:'Mean composite PEWS'}}, baseConfig);
+
+Plotly.newPlot('ccot-hour', [
+  { x:hours, y:ccotHrNo, name:'Not transferred', type:'bar', marker:{color:'#2ca02c'} },
+  { x:hours, y:ccotHrTx, name:'Transferred ≤72h', type:'bar', marker:{color:'#d62728'} },
+], {...baseLayout, barmode:'stack', xaxis:{title:'Hour of CCOT note (T0)', dtick:3}, yaxis:{title:'Cases'}}, baseConfig);
+
+// ===== RRT outcomes =====
+Plotly.newPlot('rrt-funnel', [{
+  x:['2h','12h','24h','48h'], y:rrtRates, type:'bar', marker:{color:'#d62728'},
+  text:rrtRates.map(v=>pct(v)), textposition:'outside'
+}], {...baseLayout, yaxis:{title:'Cumulative transfer rate', tickformat:'.0%', range:[0,0.55]}}, baseConfig);
+
+Plotly.newPlot('rrt-reason', [{
+  type:'bar', orientation:'h',
+  y:reasonLabels.slice().reverse(), x:reasonN.slice().reverse(),
+  marker:{color:'#fd8d3c'}
+}], {...baseLayout, xaxis:{title:'Activations'}}, baseConfig);
+
+Plotly.newPlot('rrt-disp', [{
+  type:'bar', x:dispLabels, y:dispN, marker:{color:['#74c476','#fb6a4a','#807dba']},
+  text:dispN, textposition:'outside'
+}], {...baseLayout, yaxis:{title:'Activations'}}, baseConfig);
+
+Plotly.newPlot('rrt-hour', [
+  { x:hours, y:rrtHrNo,    name:'No / non-emergent', type:'bar', marker:{color:'#2ca02c'} },
+  { x:hours, y:rrtHrEmerg, name:'Emergency transfer', type:'bar', marker:{color:'#d62728'} },
+], {...baseLayout, barmode:'stack', xaxis:{title:'Hour of activation', dtick:3}, yaxis:{title:'Activations'}}, baseConfig);
+
+// ===== Charges =====
+Plotly.newPlot('ch-trend', [{
+  x:months, y:monthlyCharges, mode:'lines+markers', line:{color:'#2ca02c'}
+}], {...baseLayout, yaxis:{title:'Total monthly charges', tickprefix:'$', tickformat:','}}, baseConfig);
+
+Plotly.newPlot('ch-cpt', [{
+  type:'bar', orientation:'h', y:cpts.slice().reverse(), x:cptTotals.slice().reverse(),
+  marker:{color:'#4292c6'},
+  text:cptTotals.slice().reverse().map(v=>'$'+v.toLocaleString()), textposition:'outside'
+}], {...baseLayout, xaxis:{tickprefix:'$', tickformat:','}}, baseConfig);
+
+Plotly.newPlot('ch-prov', [{
+  type:'bar', orientation:'h', y:providers, x:provTotals, marker:{color:'#9e9ac8'}
+}], {...baseLayout, xaxis:{tickprefix:'$', tickformat:','}}, baseConfig);
+
+Plotly.newPlot('ch-unit', [{
+  type:'bar', orientation:'h', y:UNITS, x:unitTotals, marker:{color:'#41ab5d'}
+}], {...baseLayout, xaxis:{tickprefix:'$', tickformat:','}}, baseConfig);
+
+// ===== Implementation =====
+Plotly.newPlot('im-trend', [
+  { x:nomadDates, y:accept, name:'acceptability',   mode:'lines+markers', line:{color:'#1f77b4'} },
+  { x:nomadDates, y:approp, name:'appropriateness', mode:'lines+markers', line:{color:'#ff7f0e'} },
+  { x:nomadDates, y:feasib, name:'feasibility',     mode:'lines+markers', line:{color:'#2ca02c'} },
+], {...baseLayout, yaxis:{title:'Mean score (1-5)', range:[1,5]}}, baseConfig);
+
+Plotly.newPlot('im-floor', [
+  { x:floorDates, y:floorScores.acceptability,   name:'acceptability',   mode:'markers', marker:{color:'#1f77b4', size:8, opacity:0.7} },
+  { x:floorDates, y:floorScores.appropriateness, name:'appropriateness', mode:'markers', marker:{color:'#ff7f0e', size:8, opacity:0.7} },
+  { x:floorDates, y:floorScores.feasibility,     name:'feasibility',     mode:'markers', marker:{color:'#2ca02c', size:8, opacity:0.7} },
+], {...baseLayout, yaxis:{title:'Score (1-5)', range:[1,5]}}, baseConfig);
+
+Plotly.newPlot('im-violin', [
+  { type:'violin', y:accept.concat(floorScores.acceptability), name:'acceptability',   box:{visible:true}, meanline:{visible:true}, line:{color:'#1f77b4'} },
+  { type:'violin', y:approp.concat(floorScores.appropriateness), name:'appropriateness', box:{visible:true}, meanline:{visible:true}, line:{color:'#ff7f0e'} },
+  { type:'violin', y:feasib.concat(floorScores.feasibility),     name:'feasibility',     box:{visible:true}, meanline:{visible:true}, line:{color:'#2ca02c'} },
+], {...baseLayout, yaxis:{title:'Score (1-5)', range:[1,5]}, showlegend:false}, baseConfig);
+
+// ===== DQ =====
+Plotly.newPlot('dq-parse', [{
+  x:weeks, y:parseRate, mode:'lines+markers', line:{color:'#1f77b4'}
+}], {...baseLayout, yaxis:{title:'Parse success rate', tickformat:'.0%', range:[0.7,1]}}, baseConfig);
+
+Plotly.newPlot('dq-miss', [{
+  type:'bar', orientation:'h',
+  y:['nomad_survey.free_text','ccot_assessments.recommendation_text','transfers.intubated_at_transfer','flowsheet_rows.behavior_score','rrt_fact.disposition'],
+  x:[0.18,0.06,0.04,0.03,0.01],
+  marker:{color:'#fb6a4a'}
+}], {...baseLayout, xaxis:{tickformat:'.0%'}}, baseConfig);
+
+// ---------- DataTables ----------
+function buildTable(sel, cols, rows){
+  const $t = $(sel);
+  $t.empty().append(`<thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody></tbody>`);
+  const $b = $t.find('tbody');
+  rows.forEach(r=>$b.append(`<tr>${r.map(v=>`<td>${v}</td>`).join('')}</tr>`));
+  $t.DataTable({pageLength:5, lengthChange:false, searching:true, info:false});
+}
+
+const sampleCcot = Array.from({length:40},(_,i)=>{
+  const tx = Math.random()<0.22;
+  const hrs = tx ? (Math.random()*72).toFixed(1) : '';
+  return [`CSN${String(2000+i).padStart(7,'0')}`,
+    UNITS[Math.floor(Math.random()*UNITS.length)],
+    `2025-${String(1+Math.floor(Math.random()*12)).padStart(2,'0')}-${String(1+Math.floor(Math.random()*28)).padStart(2,'0')} ${String(Math.floor(Math.random()*24)).padStart(2,'0')}:${String(Math.floor(Math.random()*60)).padStart(2,'0')}`,
+    rsample(['Night (00-07)','Day (07-15)','Evening (15-23)','Late (23-00)'],1)[0],
+    DOWS[Math.floor(Math.random()*7)],
+    rsample(recCats,1,[0.55,0.25,0.12,0.08])[0], hrs, tx && Math.random()<0.3 ? 'TRUE' : (tx?'FALSE':'FALSE')];
+});
+buildTable('#ccot-table',
+  ['CSN','Unit','T0','Shift','DOW','Recommendation','Hrs to transfer','Emergency'],
+  sampleCcot);
+
+const sampleRrt = Array.from({length:30},(_,i)=>{
+  const tx = Math.random()<0.55;
+  const hrs = tx ? (Math.random()*72).toFixed(1) : '';
+  return [`CSN${String(3000+i).padStart(7,'0')}`,
+    UNITS[Math.floor(Math.random()*UNITS.length)],
+    `2025-${String(1+Math.floor(Math.random()*12)).padStart(2,'0')}-${String(1+Math.floor(Math.random()*28)).padStart(2,'0')} ${String(Math.floor(Math.random()*24)).padStart(2,'0')}:${String(Math.floor(Math.random()*60)).padStart(2,'0')}`,
+    rsample(reasonLabels,1)[0],
+    rsample(dispLabels,1,[0.45,0.45,0.10])[0],
+    hrs, tx && Math.random()<0.4 ? 'TRUE' : 'FALSE'];
+});
+buildTable('#rrt-table',
+  ['CSN','Unit','Activation time','Reason bucket','Disposition','Hrs to transfer','Emergency'],
+  sampleRrt);
+
+const sampleIm = [
+  ['2025-09-15','CCOT team','ccot_03','Workflow has become routine for our team.'],
+  ['2025-10-02','Floor provider','floor_22','CCOT recommendations are clear and actionable.'],
+  ['2025-10-13','Floor provider','floor_07','Communication around recommendations could improve.'],
+  ['2025-11-04','CCOT team','ccot_05','Note template still cumbersome on overnight admits.'],
+  ['2025-12-01','CCOT team','ccot_01','Floor RN engagement has improved this month.'],
+  ['2026-01-19','Floor provider','floor_15','Helpful having proactive eyes on at-risk patients.'],
+];
+buildTable('#im-table', ['Date','Role','Respondent','Free text'], sampleIm);
+
+const sampleDq = Array.from({length:15},(_,i)=>[
+  `CSN${String(4000+i).padStart(7,'0')}`,
+  `ENC${String(4000+i).padStart(7,'0')}`,
+  `2025-${String(1+Math.floor(Math.random()*12)).padStart(2,'0')}-${String(1+Math.floor(Math.random()*28)).padStart(2,'0')}`,
+  '(empty or malformed text)'
+]);
+buildTable('#dq-table', ['CSN','Encounter','Note datetime','Recommendation text'], sampleDq);
+
+// Re-trigger Plotly resize when tabs become visible
+document.querySelectorAll('[data-bs-toggle="tab"]').forEach(btn=>{
+  btn.addEventListener('shown.bs.tab', ()=>{
+    document.querySelectorAll('.chart').forEach(el=>{ try{ Plotly.Plots.resize(el); }catch(e){} });
+  });
+});
+</script>
+</body>
+</html>
