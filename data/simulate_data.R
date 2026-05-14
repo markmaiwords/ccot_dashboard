@@ -20,7 +20,9 @@ encounters <- tibble::tibble(
   admit_datetime = as.POSIXct(PROGRAM_START_DATE) +
     sample(0:as.integer(difftime(PROGRAM_END_DATE, PROGRAM_START_DATE,
                                  units = "secs")),
-           .n_encounters, replace = TRUE)
+           .n_encounters, replace = TRUE),
+  is_watcher = FALSE,
+  watcher_flagged_datetime = as.POSIXct(NA)
 )
 
 # ---- ccot_assessments ---------------------------------------------------
@@ -70,6 +72,31 @@ ccot_assessments$recommendation_text <- dplyr::case_when(
 # Some failed-parse rows get realistic empty text.
 ccot_assessments$recommendation_text[!ccot_assessments$note_parse_success] <-
   NA_character_
+
+# ---- watcher status -----------------------------------------------------
+# REAL SOURCE: CCOT watcher list — a manually maintained at-risk list,
+# typically a daily-refreshed flag in Epic (custom flowsheet, registry,
+# or care-team SmartList). Replace with the actual extract; the only
+# required output is `is_watcher` + `watcher_flagged_datetime` on the
+# encounters table.
+#
+# Mock model: most CCOT-assessed encounters were also watchers (the team
+# rounds on the watcher list), with realistic dropout in both directions:
+#   - some watchers resolve before formal CCOT eval
+#   - some CCOT evals are ad-hoc consults on non-watchers (RN concern)
+.ccot_csns_set <- unique(ccot_assessments$pat_enc_csn)
+.non_ccot_set  <- setdiff(encounters$pat_enc_csn, .ccot_csns_set)
+.watcher_via_ccot  <- sample(.ccot_csns_set,
+                             floor(0.80 * length(.ccot_csns_set)))
+.watcher_via_other <- sample(.non_ccot_set,
+                             floor(0.25 * length(.non_ccot_set)))
+.watcher_csns <- c(.watcher_via_ccot, .watcher_via_other)
+
+encounters$is_watcher <- encounters$pat_enc_csn %in% .watcher_csns
+.flagged_idx <- which(encounters$is_watcher)
+encounters$watcher_flagged_datetime[.flagged_idx] <-
+  encounters$admit_datetime[.flagged_idx] +
+  lubridate::hours(sample(0:24, length(.flagged_idx), replace = TRUE))
 
 # ---- deterioration_fact -------------------------------------------------
 # REAL SOURCE: structured pediatric deterioration index pulls from Epic

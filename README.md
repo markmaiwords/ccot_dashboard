@@ -86,8 +86,18 @@ inpatient encounter.
 | `unit` | chr | Floor unit name; must match `FLOOR_UNITS` in `global.R` |
 | `age_years` | num | Patient age at admission |
 | `admit_datetime` | POSIXct | Inpatient admit timestamp |
+| `is_watcher` | lgl | Was this encounter ever on the CCOT watcher list? |
+| `watcher_flagged_datetime` | POSIXct | When the encounter was first flagged (NA if never) |
 
-**Used by:** all tabs (via `ccot_cases` / `rrt_cases`).
+`is_watcher` is the first node in the Overview Sankey pipeline. Real
+source is the CCOT watcher list itself — typically a manually
+maintained at-risk list in Epic (custom flowsheet, registry, or
+care-team SmartList). If your site stores watcher status as a
+longitudinal event log instead of a boolean, summarize to one row per
+encounter with `is_watcher = any(flagged)`.
+
+**Used by:** all tabs (via `ccot_cases` / `rrt_cases`); Overview Sankey
+uses `is_watcher` directly.
 
 ---
 
@@ -259,6 +269,10 @@ Every event with a timestamp is decorated with `hour_of()` and
 `shift_of()` helpers in `global.R`. The dashboard surfaces hour-of-day
 explicitly in three places:
 
+- **Overview → Patient pipeline (Sankey)** — flow from admission
+  through watcher list → CCOT eval → RRT → PICU transfer →
+  emergency/routine, with dropouts at each stage so you can see where
+  patients exit the pipeline.
 - **Overview → Hour-of-day distribution** — overlaid lines for CCOT
   notes, RRT calls, and transfers.
 - **CCOT Outcomes → CCOT note hour-of-day** — stacked bars, transferred

@@ -26,6 +26,16 @@ overviewUI <- function(id) {
         bslib::card_header("Hour-of-day distribution — CCOT, RRT, transfers"),
         plotly::plotlyOutput(ns("hour_dist"), height = "320px")
       )
+    ),
+    bslib::layout_columns(
+      bslib::card(
+        bslib::card_header(
+          "Patient pipeline — admitted to PICU transfer",
+          tags$small(class = "text-muted ms-2",
+                     "Sankey: stage counts derive from filtered data")
+        ),
+        plotly::plotlyOutput(ns("sankey"), height = "420px")
+      )
     )
   )
 }
@@ -124,6 +134,122 @@ overviewServer <- function(id, date_range) {
         theme_minimal(base_size = 12) +
         theme(axis.text.x = element_text(angle = 0))
       plotly_config(plotly::ggplotly(p, tooltip = c("x", "y", "fill")))
+    })
+
+    output$sankey <- plotly::renderPlotly({
+      # Filter encounters to the global date range using admit_datetime.
+      enc_f <- filter_by_date(encounters, "admit_datetime", date_range())
+      validate(need(nrow(enc_f) > 0,
+                    "No admissions in selected date range."))
+
+      # Stage 1: Admitted -> Watcher | Not flagged
+      watcher_csns <- enc_f$pat_enc_csn[enc_f$is_watcher]
+      n_admitted   <- nrow(enc_f)
+      n_watcher    <- length(watcher_csns)
+      n_notflagged <- n_admitted - n_watcher
+
+      # Stage 2: among watchers -> CCOT eval | resolved without eval
+      ccot_csns_in <- ccot_cases$pat_enc_csn[
+        ccot_cases$pat_enc_csn %in% watcher_csns
+      ]
+      n_ccot       <- length(ccot_csns_in)
+      n_no_ccot    <- n_watcher - n_ccot
+
+      # Stage 3: among CCOT-evaluated watchers -> RRT | no RRT
+      rrt_csns_in <- unique(rrt_fact$pat_enc_csn[
+        rrt_fact$pat_enc_csn %in% ccot_csns_in
+      ])
+      n_rrt       <- length(rrt_csns_in)
+      n_no_rrt    <- n_ccot - n_rrt
+
+      # Stage 4: among RRT pipeline -> PICU transfer | stayed on floor
+      transfers_in <- transfers[transfers$pat_enc_csn %in% rrt_csns_in, ]
+      transfer_csns_in <- unique(transfers_in$pat_enc_csn)
+      n_transfer  <- length(transfer_csns_in)
+      n_no_transfer <- n_rrt - n_transfer
+
+      # Stage 5: emergency vs routine
+      tx <- transfers_in[!duplicated(transfers_in$pat_enc_csn), ]
+      n_emerg   <- sum(tx$intubated_at_transfer | tx$vasopressor_at_transfer)
+      n_routine <- n_transfer - n_emerg
+
+      # Node order (0-indexed for plotly sankey).
+      labels <- c(
+        sprintf("Admitted (%d)", n_admitted),                # 0
+        sprintf("Watcher list (%d)", n_watcher),             # 1
+        sprintf("Not flagged (%d)", n_notflagged),           # 2
+        sprintf("CCOT evaluated (%d)", n_ccot),              # 3
+        sprintf("Resolved without CCOT eval (%d)", n_no_ccot), # 4
+        sprintf("RRT activated (%d)", n_rrt),                # 5
+        sprintf("De-escalated, no RRT (%d)", n_no_rrt),      # 6
+        sprintf("PICU transfer (%d)", n_transfer),           # 7
+        sprintf("Remained on floor (%d)", n_no_transfer),    # 8
+        sprintf("Emergency transfer (%d)", n_emerg),         # 9
+        sprintf("Routine transfer (%d)", n_routine)          # 10
+      )
+
+      node_colors <- c(
+        "#1f4e79", # admitted
+        "#3182bd", # watcher (on-program)
+        "#bdbdbd", # not flagged (off-program terminal)
+        "#2c7fb8", # CCOT eval
+        "#bdbdbd", # no CCOT eval terminal
+        "#fd8d3c", # RRT
+        "#bdbdbd", # no RRT terminal
+        "#de2d26", # PICU transfer
+        "#bdbdbd", # remained on floor terminal
+        "#a50f15", # emergency transfer
+        "#fc9272"  # routine transfer
+      )
+
+      # Links: source, target, value.
+      src <- c(0, 0, 1, 1, 3, 3, 5, 5, 7, 7)
+      tgt <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+      val <- c(n_watcher, n_notflagged,
+               n_ccot, n_no_ccot,
+               n_rrt, n_no_rrt,
+               n_transfer, n_no_transfer,
+               n_emerg, n_routine)
+
+      # Forward-flow links use a translucent version of the destination
+      # color; dropouts use translucent gray.
+      link_colors <- c(
+        "rgba(49,130,189,0.45)",  # admitted -> watcher
+        "rgba(189,189,189,0.35)", # admitted -> not flagged
+        "rgba(44,127,184,0.45)",  # watcher -> CCOT
+        "rgba(189,189,189,0.35)", # watcher -> no CCOT
+        "rgba(253,141,60,0.45)",  # CCOT -> RRT
+        "rgba(189,189,189,0.35)", # CCOT -> no RRT
+        "rgba(222,45,38,0.45)",   # RRT -> transfer
+        "rgba(189,189,189,0.35)", # RRT -> no transfer
+        "rgba(165,15,21,0.55)",   # transfer -> emergency
+        "rgba(252,146,114,0.55)"  # transfer -> routine
+      )
+
+      p <- plotly::plot_ly(
+        type = "sankey",
+        orientation = "h",
+        arrangement = "snap",
+        node = list(
+          label = labels,
+          color = node_colors,
+          pad = 18,
+          thickness = 20,
+          line = list(color = "#ffffff", width = 0.5)
+        ),
+        link = list(
+          source = src,
+          target = tgt,
+          value  = val,
+          color  = link_colors
+        )
+      ) |>
+        plotly::layout(
+          font = list(family = "system-ui, Segoe UI, Roboto, sans-serif",
+                      size = 12),
+          margin = list(t = 10, l = 10, r = 10, b = 10)
+        )
+      plotly_config(p)
     })
 
     output$hour_dist <- plotly::renderPlotly({
